@@ -38,39 +38,49 @@ practice_questions
 safe_note
 """
 
+
 def ask_study_assistant(question):
-    response = client.models.generate_content(
-        model="gemini-flash-latest",
-        contents=f"""
+    models_to_try = [
+        "gemini-flash-latest",
+        "gemini-2.5-flash-lite",
+        "gemini-3.1-flash-lite",
+    ]
+
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=f"""
 {SYSTEM_PROMPT}
 
 Student question:
 {question}
 """,
-        config={
-            "response_mime_type": "application/json"
-        }
-    )
+                config={
+                    "response_mime_type": "application/json"
+                }
+            )
 
-    text = response.text.strip()
+            text = response.text.strip()
 
-    try:
-        # Remove accidental markdown code fences if the model adds them.
-        if text.startswith("```"):
-            text = text.replace("```json", "", 1)
-            text = text.replace("```", "", 1).strip()
+            if text.startswith("```"):
+                text = text.replace("```json", "", 1)
+                text = text.replace("```", "", 1).strip()
 
-        return json.loads(text)
+            return json.loads(text)
 
-    except json.JSONDecodeError:
-        return {
-            "topic": question,
-            "explanation": "I don't have enough reliable information to provide a structured answer.",
-            "key_points": [],
-            "example": "",
-            "practice_questions": [],
-            "safe_note": "The AI response could not be verified as structured JSON."
-        }
+        except Exception:
+            continue
+
+    return {
+        "topic": question,
+        "explanation": "The AI service is temporarily unavailable. Please try again shortly.",
+        "key_points": [],
+        "example": "",
+        "practice_questions": [],
+        "safe_note": "The configured AI models were temporarily unavailable."
+    }
+
 
 print("\nAI Study Assistant")
 print("=" * 50)
@@ -94,7 +104,9 @@ while True:
     result = ask_study_assistant(question)
 
     print("\n" + "-" * 50)
+
     print("TOPIC:", result.get("topic", ""))
+
     print("\nEXPLANATION:")
     print(result.get("explanation", ""))
 
